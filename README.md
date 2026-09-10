@@ -39,24 +39,20 @@ pip install -e .
 ```
 ## Repository structure
 
-├── configs/                    # BDT, GATr, dataset, and path configurations
-│   ├── BDT_config.py
-│   ├── GATr_config.py
-│   ├── datasets.py
-│   └── paths.py
-├── GRAiNITA_performance/       # Resolution scan and performance estimation scripts
+├── configs/
+├── GRAiNITA_performance/
 │   ├── 68_method/
 │   └── fit_method/
-├── plotting_scripts/           # BDT & GATr loss, efficiency, and event display plots
-├── scripts/                    # Main execution entry points
+├── plotting_scripts/
+├── scripts/
 │   ├── run_preprocessing.py
 │   └── run_training.py
-├── src/                        # Core Python source package
+├── src/
 │   ├── evaluation.py
 │   ├── split_utils.py
-│   ├── models/                 # BDT and GATr network definitions
-│   ├── preprocessing/          # Data preparation modules
-│   └── training/               # Model training loops
-├── pyproject.toml              # Editable package configuration
+│   ├── models/
+│   ├── preprocessing/
+│   └── training/
+├── pyproject.toml
 └── README.md
 
