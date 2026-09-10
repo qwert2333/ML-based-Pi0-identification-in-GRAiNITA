@@ -1,0 +1,14 @@
+*.root
+gatr_venv/
+.gatr_venv/
+*.png
+*.pt
+*.pdf
+*.joblib
+*.pyc
+*.egg-info/
+*.log
+*.csv
+*.txt
+data/*
+trained_models/*
