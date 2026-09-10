@@ -38,6 +38,7 @@ pip install gatr
 pip install -e .
 ```
 ## Repository structure
+```
 
 ├── configs/
 ├── GRAiNITA_performance/
@@ -55,4 +56,5 @@ pip install -e .
 │   └── training/
 ├── pyproject.toml
 └── README.md
+```
 
