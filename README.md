@@ -11,7 +11,7 @@ The project uses geometric machine learning architectures (GATr) to improve phot
 
 ## Project Report
 
-The complete written report accompanying this work is available on [CDS]()
+The complete written report accompanying this work is available on [CDS](https://repository.cern/records/hqk7f-99c23)
 
 ---
 
