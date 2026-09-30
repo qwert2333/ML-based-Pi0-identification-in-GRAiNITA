@@ -18,13 +18,26 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from configs.datasets import DATASET_CATALOG
 from configs.paths import FilePaths
-#from src.preprocessing.bdt_data_prep import run_bdt_preprocessing
-from src.preprocessing.bdt_data_prep_select import run_bdt_preprocessing
-from src.preprocessing.gatr_data_prep import run_gatr_preprocessing
+from src.preprocessing.gatr_data_prep import DEFAULT_LLP_PDGS, run_gatr_preprocessing
 
 
 def resolve_input_files(pattern_or_dir: str, base_dir: str, max_files: int) -> list[str]:
     """Expands a directory name, relative path, or glob pattern into sorted ROOT file paths."""
+    # Prefer paths supplied relative to the current working directory. This makes
+    # inputs such as data/RecTuple_*.root work without the RAW_DATA_IN prefix.
+    direct_path = os.path.abspath(os.path.expanduser(pattern_or_dir))
+    if os.path.isfile(direct_path):
+        matched_files = [direct_path]
+        return matched_files[:max_files] if max_files > 0 else matched_files
+    if os.path.isdir(direct_path):
+        matched_files = sorted(glob.glob(os.path.join(direct_path, "*.root")))
+        if not matched_files:
+            matched_files = sorted(glob.glob(
+                os.path.join(direct_path, "**", "*.root"), recursive=True
+            ))
+        if matched_files:
+            return matched_files[:max_files] if max_files > 0 else matched_files
+
     # Build absolute search path
     if not os.path.isabs(pattern_or_dir) and not ("*" in pattern_or_dir or "?" in pattern_or_dir):
         search_path = os.path.join(base_dir, pattern_or_dir, "*.root")
@@ -70,13 +83,13 @@ def main():
         "--pion-dir",
         type=str,
         default=None,
-        help="Manual override for pion (bkg) directory/glob pattern.",
+        help="Manual override for pi0/LLP signal file, directory, or glob pattern.",
     )
     parser.add_argument(
         "--photon-dir",
         type=str,
         default=None,
-        help="Manual override for photon (sig) directory/glob pattern.",
+        help="Manual override for photon background file, directory, or glob pattern.",
     )
     parser.add_argument(
         "--version-tag",
@@ -96,19 +109,45 @@ def main():
         "--seed",
         type=int,
         default=42,
-        help="Random seed for 50/50 balance and train/val/test split consistency.",
+        help="Random seed for the event-grouped train/validation/test split.",
     )
     parser.add_argument(
         "--chunk-size",
         type=int,
         default=50000,
-        help="Events per chunk in exported split ROOT datasets.",
+        help="Clusters per chunk in exported split ROOT datasets.",
     )
     parser.add_argument(
         "--files-per-chunk",
         type=int,
         default=25,
-        help="[GATr] Raw ROOT files combined per intermediate tensor chunk.",
+        help="[GATr] Raw ROOT files combined per intermediate preprocessing chunk.",
+    )
+    parser.add_argument(
+        "--max-hits",
+        type=int,
+        default=256,
+        help="[GATr] Maximum hits kept per cluster (highest-energy hits are kept).",
+    )
+    parser.add_argument(
+        "--llp-pdg",
+        type=int,
+        action="append",
+        default=None,
+        help=("[GATr] LLP PDG ID to treat as signal. Repeat for multiple IDs; "
+              f"defaults to {list(DEFAULT_LLP_PDGS)}."),
+    )
+    parser.add_argument(
+        "--nominal-mass",
+        type=str,
+        default="",
+        help="[GATr] Free-form nominal mass string stored in every output row.",
+    )
+    parser.add_argument(
+        "--nominal-lifetime",
+        type=str,
+        default="",
+        help="[GATr] Free-form nominal lifetime string stored in every output row.",
     )
 
     args = parser.parse_args()
@@ -133,10 +172,12 @@ def main():
     pion_inputs = resolve_input_files(pion_pattern, paths.RAW_DATA_IN, args.num_files)
     photon_inputs = resolve_input_files(photon_pattern, paths.RAW_DATA_IN, args.num_files)
 
-    print(f"--> Resolved Inputs: {len(photon_inputs)} Photon (Signal) & {len(pion_inputs)} Pion (Background) files.")
+    print(f"--> Resolved Inputs: {len(pion_inputs)} Pi0/LLP (Signal) & {len(photon_inputs)} Photon (Background) files.")
 
     # 3. Execute BDT Pipeline
     if args.model in ["bdt", "all"]:
+        from src.preprocessing.bdt_data_prep_select import run_bdt_preprocessing
+
         bdt_target_dir = os.path.join(paths.BDT_DATA_DIR, f"dataset_{version_tag}")
         os.makedirs(bdt_target_dir, exist_ok=True)
 
@@ -171,6 +212,10 @@ def main():
             chunk_size=args.chunk_size,
             files_per_chunk=args.files_per_chunk,
             version_tag=version_tag,
+            max_hits=args.max_hits,
+            llp_pdg_ids=tuple(args.llp_pdg or DEFAULT_LLP_PDGS),
+            nominal_mass=args.nominal_mass,
+            nominal_lifetime=args.nominal_lifetime,
         )
 
     print("\n[SUCCESS] Pipeline processing completed successfully!")

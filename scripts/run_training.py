@@ -13,7 +13,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from configs.paths import FilePaths
-from src.training.train_bdt import run_bdt_training
 from src.training.train_gatr import run_gatr_training
 
 
@@ -45,14 +44,27 @@ def main():
     parser.add_argument("-v", "--version-tag", type=str, default="v1", help="Run dataset version tag identifier.")
     parser.add_argument("-r", "--run-tag", type=str, default=None, help="Optional model descriptor/experiment tag (e.g. 'lr1e-4', 'deep').")
     parser.add_argument("-w", "--working-point", type=float, default=0.5, help="Score threshold working point.")
-    parser.add_argument("--epochs", type=int, default=20, help="[GATr] Training epochs.")
+    parser.add_argument("--epochs", type=int, default=60, help="[GATr] Training epochs (also sets the cosine schedule length).")
     parser.add_argument("--batch-size", type=int, default=32, help="[GATr] Batch size.")
-    parser.add_argument("--lr", type=float, default=1e-4, help="[GATr] Learning rate for fine-tuning.")
-    parser.add_argument("--patience", type=int, default=5, help="[GATr] Early stopping patience.")
+    parser.add_argument("--lr", type=float, default=5e-4, help="[GATr] Peak learning rate after warmup.")
+    parser.add_argument("--patience", type=int, default=15, help="[GATr] Early stopping patience on the selection metric.")
     parser.add_argument("--min-delta", type=float, default=1e-4, help="[GATr] Minimum delta for early stopping.")
     parser.add_argument("--resume", action="store_true", help="[GATr] Load weights from existing gatr_best_model.pt in run_dir.")
     parser.add_argument("--pretrained-path", type=str, default=None, help="[GATr] Explicit file path to pretrained .pt checkpoint weights.")
     parser.add_argument("--keep_optimizer", action="store_true", help="[GATr] Restore old optimizer state instead of starting fresh AdamW.")
+    parser.add_argument("--classification-loss-weight", type=float, default=1.0, help="[GATr] Classification loss weight.")
+    parser.add_argument("--mass-loss-weight", type=float, default=1.0, help="[GATr] LLP mass regression loss weight.")
+    parser.add_argument("--decay-point-loss-weight", type=float, default=1.0, help="[GATr] LLP decay-point regression loss weight.")
+    parser.add_argument("--point-reg-weight", type=float, default=1e-3, help="[GATr] PGA point embedding regularization weight.")
+    parser.add_argument("--decay-point-scale-mm", type=float, default=1000.0, help="[GATr] Coordinate scale used in the decay-point loss.")
+    parser.add_argument("--weight-decay", type=float, default=1e-4, help="[GATr] AdamW weight decay.")
+    parser.add_argument("--warmup-epochs", type=float, default=2.0, help="[GATr] Linear LR warmup length in epochs.")
+    parser.add_argument("--min-lr-ratio", type=float, default=0.02, help="[GATr] Final cosine LR as a fraction of --lr.")
+    parser.add_argument("--grad-clip", type=float, default=1.0, help="[GATr] Gradient-norm clipping (0 disables).")
+    parser.add_argument("--amp", choices=["bf16", "fp16", "none"], default="bf16", help="[GATr] Mixed precision on CUDA.")
+    parser.add_argument("--select-metric", choices=["auc", "loss"], default="auc", help="[GATr] Validation metric choosing gatr_best_model.pt and early stopping.")
+    parser.add_argument("--seed", type=int, default=42, help="[GATr] Random seed (model init and per-epoch shuffling).")
+    parser.add_argument("--no-global-features", action="store_true", help="[GATr] Disable absolute-scale / front-layer-energy-fraction head inputs.")
 
     args = parser.parse_args()
     paths = FilePaths()
@@ -66,6 +78,7 @@ def main():
 
     # --- Train BDT Pipeline ---
     if args.model in ["bdt", "all"]:
+        from src.training.train_bdt import run_bdt_training
         bdt_run_dir = os.path.join(paths.BDT_MODELS_DIR, folder_name)
         os.makedirs(bdt_run_dir, exist_ok=True)
 
@@ -101,6 +114,19 @@ def main():
             resume=args.resume,
             pretrained_path=args.pretrained_path,
             reset_optimizer=not args.keep_optimizer,
+            classification_loss_weight=args.classification_loss_weight,
+            mass_loss_weight=args.mass_loss_weight,
+            decay_point_loss_weight=args.decay_point_loss_weight,
+            point_embedding_reg_weight=args.point_reg_weight,
+            decay_point_scale_mm=args.decay_point_scale_mm,
+            weight_decay=args.weight_decay,
+            warmup_epochs=args.warmup_epochs,
+            min_lr_ratio=args.min_lr_ratio,
+            grad_clip_norm=args.grad_clip or None,
+            amp=args.amp,
+            select_metric=args.select_metric,
+            seed=args.seed,
+            use_global_features=not args.no_global_features,
         )
 
 

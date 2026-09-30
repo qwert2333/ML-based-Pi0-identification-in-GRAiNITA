@@ -10,7 +10,6 @@ from sklearn.metrics import auc, confusion_matrix, roc_curve
 
 # Clean modern project imports
 from configs.paths import FilePaths
-from models.bdt_models import BDTClassifier
 
 
 def evaluate_bdt(
@@ -244,6 +243,7 @@ def evaluate_bdt(
 
 
 def main():
+    from src.models.bdt_models import BDTClassifier
     parser = argparse.ArgumentParser(
         description="Evaluate a trained BDT model on test dataset."
     )

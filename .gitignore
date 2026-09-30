@@ -1,6 +1,6 @@
 *.root
-gatr_venv/
-.gatr_venv/
+gatr/
+.gatr/
 *.png
 *.pt
 *.pdf
@@ -12,3 +12,4 @@ gatr_venv/
 *.txt
 data/*
 trained_models/*
+results/*

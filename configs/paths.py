@@ -13,7 +13,7 @@ class FilePaths:
     def __init__(self, base_dir=None, project_dir=None):
         # 1. Base & Project Root
         self.BASE_DIR = base_dir or "/eos/user/m/mgroning/"
-        self.PROJECT_DIR = project_dir or os.path.join(
+        self.PROJECT_DIR = project_dir or os.environ.get("GRAINITA_PROJECT_DIR") or os.path.join(
             self.BASE_DIR, "ML_summer_project/CERN_summer_project"
         )
 

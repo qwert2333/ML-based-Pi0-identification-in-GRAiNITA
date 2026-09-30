@@ -5,4 +5,4 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cern_summer_project"
 version = "0.1.0"
-dependencies = ["gatr"]
+dependencies = ["gatr", "pyhepmc>=2.16,<3"]

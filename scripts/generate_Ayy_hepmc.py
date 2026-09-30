@@ -3,7 +3,7 @@
 import argparse
 import math
 import random
-from pyHepMC3 import HepMC3
+import pyhepmc as HepMC3
 
 C_MM_PER_NS = 299.792458
 
@@ -131,7 +131,8 @@ def generate(
     theta_range,
     phi_range,
     proper_lifetime_ns,
-    seed
+    seed,
+    energy_sampling="log",
 ):
     if not math.isfinite(mA) or mA <= 0.0:
         raise ValueError("Mass of A must be finite and positive.")
@@ -150,12 +151,16 @@ def generate(
             raise ValueError(f"{name} range must satisfy min < max.")
     if energy_range[0] < mA:
         raise ValueError("Minimum energy must be at least the mass of A.")
+    if energy_sampling not in {"log", "uniform"}:
+        raise ValueError("Energy sampling must be either 'log' or 'uniform'.")
+    if energy_sampling == "log" and energy_range[0] <= 0.0:
+        raise ValueError("Log-uniform energy sampling requires a positive minimum.")
     if not (0.0 <= theta_range[0] < theta_range[1] <= math.pi):
         raise ValueError("Theta range must lie within [0, pi] radians.")
 
     random.seed(seed)
 
-    writer = HepMC3.WriterAscii(output)
+    writer = HepMC3.open(output, "w")
 
     for ievt in range(nevents):
 
@@ -164,10 +169,17 @@ def generate(
             HepMC3.Units.MM
         )
 
-        event.set_event_number(ievt)
+        event.event_number = ievt
 
-        # Generate kinematics
-        EA = random.uniform(*energy_range)
+        # Generate kinematics. Log-uniform is the default so broad ranges
+        # contain comparable statistics per multiplicative energy interval.
+        if energy_sampling == "log":
+            log_energy = random.uniform(
+                math.log(energy_range[0]), math.log(energy_range[1])
+            )
+            EA = math.exp(log_energy)
+        else:
+            EA = random.uniform(*energy_range)
         thetaA = random.uniform(*theta_range)
         phiA = random.uniform(*phi_range)
         pA, p1, p2 = decay_A_to_gg(
@@ -247,7 +259,7 @@ def generate(
 
         event.add_vertex(decay_vertex)
 
-        writer.write_event(event)
+        writer.write(event)
 
     writer.close()
 
@@ -258,6 +270,7 @@ def generate(
     print(f"Events        : {nevents}")
     print(f"mA            : {mA} GeV")
     print(f"EA range      : {energy_range} GeV")
+    print(f"EA sampling   : {energy_sampling}")
     print(f"thetaA range  : {theta_range} rad")
     print(f"phiA range    : {phi_range} rad")
     print(f"proper tau    : {proper_lifetime_ns} ns (mean proper lifetime)")
@@ -298,19 +311,29 @@ if __name__ == "__main__":
     parser.add_argument(
         "--energy",
         type=float, nargs=2, metavar=("MIN", "MAX"), required=True,
-        help="Uniform energy range of A [GeV]"
+        help="Energy bounds of A [GeV]"
+    )
+
+    parser.add_argument(
+        "--energy-sampling",
+        choices=("log", "uniform"),
+        default="log",
+        help=(
+            "Energy distribution inside --energy bounds. Default: log, "
+            "which samples uniformly in log(E)."
+        )
     )
 
     parser.add_argument(
         "--theta",
-        type=float, nargs=2, metavar=("MIN", "MAX"), required=True,
-        help="Uniform polar-angle range of A [rad], within [0, pi]"
+        type=float, nargs=2, metavar=("MIN", "MAX"), default=(1.50, 1.65),
+        help="Uniform polar-angle range of A [rad] (default: 1.50 1.65)"
     )
 
     parser.add_argument(
         "--phi",
-        type=float, nargs=2, metavar=("MIN", "MAX"), required=True,
-        help="Uniform azimuthal-angle range of A [rad]"
+        type=float, nargs=2, metavar=("MIN", "MAX"), default=(1.50, 1.65),
+        help="Uniform azimuthal-angle range of A [rad] (default: 1.50 1.65)"
     )
 
     parser.add_argument(
@@ -340,5 +363,6 @@ if __name__ == "__main__":
         theta_range=args.theta,
         phi_range=args.phi,
         proper_lifetime_ns=args.proper_lifetime_ns,
-        seed=args.seed
+        seed=args.seed,
+        energy_sampling=args.energy_sampling,
     )

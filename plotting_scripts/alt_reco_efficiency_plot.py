@@ -112,11 +112,7 @@ def load_and_eval_cluster_gatr_data(
 
             tree, extra_tree = f[tree_name], f[extra_tree_name]
 
-            x_norm = tree["hit_x_norm"].array(library="np")
-            y_norm = tree["hit_y_norm"].array(library="np")
-            z_norm = tree["hit_z_norm"].array(library="np")
             E_raw = tree["hit_E_raw"].array(library="np")
-            E_norm = tree["hit_E_norm"].array(library="np")
             mask = tree["hit_mask"].array(library="np")
             labels = tree["label"].array(library="np")
             mc_energy = tree["true_mc_energy"].array(library="np")
@@ -158,15 +154,11 @@ def load_and_eval_cluster_gatr_data(
                     c_mask = valid & (cluster_ids[event_idx] == cid)
                     c_mask_float = c_mask.astype(np.float32)
 
-                    t_norm = np.zeros_like(x_norm[event_idx])
-                    extra_scalars = np.stack([E_norm[event_idx] * c_mask_float, t_norm], axis=-1)
-
                     cluster_batch.append({
-                        "x": torch.from_numpy(x_norm[event_idx]).float(),
-                        "y": torch.from_numpy(y_norm[event_idx]).float(),
-                        "z": torch.from_numpy(z_norm[event_idx]).float(),
+                        "x": torch.from_numpy(x_phys[event_idx]).float(),
+                        "y": torch.from_numpy(y_phys[event_idx]).float(),
+                        "z": torch.from_numpy(z_phys[event_idx]).float(),
                         "energy_raw": torch.from_numpy(E_raw[event_idx] * c_mask_float).float(),
-                        "extra_scalars": torch.from_numpy(extra_scalars).float(),
                         "mask": torch.from_numpy(c_mask_float).float(),
                     })
 
@@ -179,7 +171,6 @@ def load_and_eval_cluster_gatr_data(
                         "y": torch.stack([item["y"] for item in b]),
                         "z": torch.stack([item["z"] for item in b]),
                         "energy_raw": torch.stack([item["energy_raw"] for item in b]),
-                        "extra_scalars": torch.stack([item["extra_scalars"] for item in b]),
                         "mask": torch.stack([item["mask"] for item in b]),
                     })
 
