@@ -12,3 +12,4 @@ gatr_venv/
 *.txt
 data/*
 trained_models/*
+results/*
