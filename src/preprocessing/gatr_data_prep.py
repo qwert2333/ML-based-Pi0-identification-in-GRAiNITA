@@ -16,6 +16,8 @@ from sklearn.model_selection import train_test_split
 from collections import Counter
 import uproot
 
+from src.preprocessing.hit_readout import merge_four_layer_hits_to_one_plus_three
+
 MAIN_KEYS = [
     "n_hits",
     "hit_x_norm",
@@ -198,6 +200,7 @@ def preprocess_clue_root_file(
     extra_trees_to_load: dict[str, list[str]] = None,
     preselection_fn=None,
     cutflow_logger: Counter = None,
+    merge_back_layers: bool = False,
     ):
     """Reads raw ROOT files, applies multi-tree preselections, and extracts features."""
     if cutflow_logger is None:
@@ -260,6 +263,9 @@ def preprocess_clue_root_file(
 
                 if len(mc["pdg"]) == 0:
                     continue
+
+                if merge_back_layers:
+                    hits = merge_four_layer_hits_to_one_plus_three(hits)
 
                 all_hits_x.append(hits["x"])
                 all_hits_y.append(hits["y"])
@@ -654,6 +660,7 @@ def run_gatr_preprocessing(
     version_tag: str = "v1",
     preselection_fn=clue_physics_preselection,  # Pass preselection function here
     extra_trees: dict = None,
+    merge_back_layers: bool = False,
 ):
     """Executes GATr data pipeline with preselection filtering and cutflow logging."""
     sig_cutflow = Counter()
@@ -680,6 +687,7 @@ def run_gatr_preprocessing(
                 preselection_fn=preselection_fn,
                 extra_trees_to_load=extra_trees,
                 cutflow_logger=logger,
+                merge_back_layers=merge_back_layers,
             )
         return out_paths
 

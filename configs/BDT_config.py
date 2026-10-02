@@ -48,6 +48,25 @@ EXTENDED_TRAIN_VARS = [
     "mean_delta",
     "max_delta",
 ]
+# Feature set of the earlier model trained_models/BDT/model_bdt_preselection
+# (before m_inv and true_mc_energy were added to the preprocessing output).
+LEGACY_14_TRAIN_VARS = [
+    "n_hits",
+    "n_clusters",
+    "total_reco_energy",
+    "leading_cluster_energy",
+    "leading_cluster_ratio",
+    "max_hit_energy_ratio",
+    "ratio_e_max_2ndmax",
+    "delta_e_2ndmax_min",
+    "shower_radius",
+    "width_x",
+    "width_y",
+    "e_fr_side",
+    "mean_layer",
+    "sigma_layer",
+]
+
 # Label & metadata variables
 TARGET_PDG = "target_pdg"
 TARGET_ENERGY = "target_energy"

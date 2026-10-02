@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from configs.paths import FilePaths
+from configs.BDT_config import LEGACY_14_TRAIN_VARS
 from src.training.train_bdt import run_bdt_training
 from src.training.train_gatr import run_gatr_training
 
@@ -54,6 +55,13 @@ def main():
     parser.add_argument("--pretrained-path", type=str, default=None, help="[GATr] Explicit file path to pretrained .pt checkpoint weights.")
     parser.add_argument("--keep_optimizer", action="store_true", help="[GATr] Restore old optimizer state instead of starting fresh AdamW.")
 
+    parser.add_argument(
+        "--bdt-features",
+        choices=["all", "legacy14"],
+        default="all",
+        help="[BDT] 'all': every non-target column (default); "
+             "'legacy14': the 14 features of model_bdt_preselection.",
+    )
     args = parser.parse_args()
     paths = FilePaths()
 
@@ -77,6 +85,9 @@ def main():
             version_tag=args.version_tag,
             logger=logger,
             working_point=args.working_point,
+            feature_cols=(
+                LEGACY_14_TRAIN_VARS if args.bdt_features == "legacy14" else None
+            ),
         )
 
     # --- Train GATr Pipeline ---

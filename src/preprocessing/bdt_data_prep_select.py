@@ -11,7 +11,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 
 from configs.BDT_config import TREE_NAME
-from split_utils import safe_to_numpy
+from src.split_utils import safe_to_numpy
+from src.preprocessing.hit_readout import (
+    merge_all_layer_hits_to_one,
+    merge_four_layer_hits_to_one_plus_three,
+)
 
 
 def print_cutflow_table(cutflow: Counter, label: str):
@@ -193,6 +197,8 @@ def extended_extract_clue_features(
     side_radius_mm: float = 15.0,
     apply_preselection: bool = True,
     cutflow: Optional[Counter] = None,
+    merge_back_layers: bool = False,
+    merge_all_layers: bool = False,
 ) -> Optional[pd.DataFrame]:
     """Reads raw CLUE TTrees, applies preselection, and computes features + m_inv."""
     print(f"--> Opening ROOT file: {input_root_path}")
@@ -241,6 +247,13 @@ def extended_extract_clue_features(
             cluster_hits = cluster_hits[event_mask]
             clusters = clusters[event_mask]
             mc = mc[event_mask]
+
+        if merge_back_layers and merge_all_layers:
+            raise ValueError("merge_back_layers and merge_all_layers are exclusive")
+        if merge_back_layers:
+            cluster_hits = merge_four_layer_hits_to_one_plus_three(cluster_hits)
+        elif merge_all_layers:
+            cluster_hits = merge_all_layer_hits_to_one(cluster_hits)
 
         print("--> Computing fine-grained calorimeter features & diphoton m_inv...")
 
@@ -343,6 +356,8 @@ def extract_clue_features(
     input_root_path: str,
     apply_preselection: bool = True,
     cutflow: Optional[Counter] = None,
+    merge_back_layers: bool = False,
+    merge_all_layers: bool = False,
 ) -> Optional[pd.DataFrame]:
     """Base tabular feature extraction including fiducial preselection filtering."""
     print(f"--> Opening ROOT file: {input_root_path}")
@@ -384,6 +399,13 @@ def extract_clue_features(
             hits = hits[event_mask]
             clusters = clusters[event_mask]
             mc = mc[event_mask]
+
+        if merge_back_layers and merge_all_layers:
+            raise ValueError("merge_back_layers and merge_all_layers are exclusive")
+        if merge_back_layers:
+            hits = merge_four_layer_hits_to_one_plus_three(hits)
+        elif merge_all_layers:
+            hits = merge_all_layer_hits_to_one(hits)
 
         print("--> Computing shower shape features...")
 
@@ -444,6 +466,8 @@ def load_and_extract_multiple_files(
     extension: bool = True,
     apply_preselection: bool = True,
     cutflow: Optional[Counter] = None,
+    merge_back_layers: bool = False,
+    merge_all_layers: bool = False,
 ) -> pd.DataFrame:
     """Utility to process multiple raw ROOT files with preselection and feature extraction."""
     if isinstance(file_paths, str):
@@ -483,11 +507,19 @@ def load_and_extract_multiple_files(
         try:
             if extension:
                 df_file = extended_extract_clue_features(
-                    fpath, apply_preselection=apply_preselection, cutflow=cutflow
+                    fpath,
+                    apply_preselection=apply_preselection,
+                    cutflow=cutflow,
+                    merge_back_layers=merge_back_layers,
+                    merge_all_layers=merge_all_layers,
                 )
             else:
                 df_file = extract_clue_features(
-                    fpath, apply_preselection=apply_preselection, cutflow=cutflow
+                    fpath,
+                    apply_preselection=apply_preselection,
+                    cutflow=cutflow,
+                    merge_back_layers=merge_back_layers,
+                    merge_all_layers=merge_all_layers,
                 )
 
             if df_file is not None and not df_file.empty:
@@ -523,6 +555,8 @@ def process_mix_and_split(
     test_size: float = 0.2,
     random_seed: int = 42,
     apply_preselection: bool = True,
+    merge_back_layers: bool = False,
+    merge_all_layers: bool = False,
 ):
     """Applies preselection, enforces class balance, splits data, and exports ROOT chunks."""
     sig_cutflow = Counter()
@@ -530,12 +564,20 @@ def process_mix_and_split(
 
     print("\n--- Extracting Features from Signal Files (Gamma) ---")
     df_sig = load_and_extract_multiple_files(
-        signal_files, apply_preselection=apply_preselection, cutflow=sig_cutflow
+        signal_files,
+        apply_preselection=apply_preselection,
+        cutflow=sig_cutflow,
+        merge_back_layers=merge_back_layers,
+        merge_all_layers=merge_all_layers,
     )
 
     print("\n--- Extracting Features from Background Files (Pi0) ---")
     df_bkg = load_and_extract_multiple_files(
-        background_files, apply_preselection=apply_preselection, cutflow=bkg_cutflow
+        background_files,
+        apply_preselection=apply_preselection,
+        cutflow=bkg_cutflow,
+        merge_back_layers=merge_back_layers,
+        merge_all_layers=merge_all_layers,
     )
 
     if apply_preselection:
@@ -615,6 +657,8 @@ def run_bdt_preprocessing(
     seed: int = 42,
     chunk_size: int = 50000,
     apply_preselection: bool = True,
+    merge_back_layers: bool = False,
+    merge_all_layers: bool = False,
 ):
     print(f"\n[BDT Preprocessing] Processing {len(signal_files)} signal & {len(background_files)} bkg files...")
 
@@ -625,6 +669,8 @@ def run_bdt_preprocessing(
         chunk_size=chunk_size,
         random_seed=seed,
         apply_preselection=apply_preselection,
+        merge_back_layers=merge_back_layers,
+        merge_all_layers=merge_all_layers,
     )
 
     print("[BDT Preprocessing] Done!")

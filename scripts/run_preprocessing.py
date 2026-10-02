@@ -25,19 +25,21 @@ from src.preprocessing.gatr_data_prep import run_gatr_preprocessing
 
 def resolve_input_files(pattern_or_dir: str, base_dir: str, max_files: int) -> list[str]:
     """Expands a directory name, relative path, or glob pattern into sorted ROOT file paths."""
-    # Build absolute search path
-    if not os.path.isabs(pattern_or_dir) and not ("*" in pattern_or_dir or "?" in pattern_or_dir):
-        search_path = os.path.join(base_dir, pattern_or_dir, "*.root")
-    elif not os.path.isabs(pattern_or_dir):
-        search_path = os.path.join(base_dir, pattern_or_dir)
+    candidate = (
+        pattern_or_dir
+        if os.path.isabs(pattern_or_dir)
+        else os.path.join(base_dir, pattern_or_dir)
+    )
+
+    if os.path.isdir(candidate):
+        search_path = os.path.join(candidate, "*.root")
     else:
-        search_path = pattern_or_dir
+        search_path = candidate
 
     matched_files = sorted(glob.glob(search_path))
 
-    # If simple search yielded nothing, try recursive lookup inside the directory
-    if not matched_files and os.path.isdir(os.path.join(base_dir, pattern_or_dir)):
-        recursive_path = os.path.join(base_dir, pattern_or_dir, "**", "*.root")
+    if not matched_files and os.path.isdir(candidate):
+        recursive_path = os.path.join(candidate, "**", "*.root")
         matched_files = sorted(glob.glob(recursive_path, recursive=True))
 
     if not matched_files:
@@ -110,8 +112,35 @@ def main():
         default=25,
         help="[GATr] Raw ROOT files combined per intermediate tensor chunk.",
     )
+    parser.add_argument(
+        "--merge-back-layers",
+        action="store_true",
+        help=(
+            "Enable 1:3 hit readout: keep layer 0 and merge layers 1/2/3 "
+            "per angular cell, summing energy at the layer-2 position."
+        ),
+    )
+    parser.add_argument(
+        "--merge-all-layers",
+        action="store_true",
+        help=(
+            "[BDT] Enable 1-layer readout: merge layers 0/1/2/3 per angular "
+            "cell, summing energy at the detector-middle position (between "
+            "layers 1 and 2) along the projective cell direction."
+        ),
+    )
+    parser.add_argument(
+        "--output-base-dir",
+        type=str,
+        default=None,
+        help="Optional output base containing BDT/ and GATr/ (defaults to FilePaths.DATA_DIR).",
+    )
 
     args = parser.parse_args()
+    if args.merge_back_layers and args.merge_all_layers:
+        parser.error("--merge-back-layers and --merge-all-layers are exclusive.")
+    if args.merge_all_layers and args.model != "bdt":
+        parser.error("--merge-all-layers is only implemented for --model bdt.")
 
     # 1. Resolve Dataset Configuration
     if args.dataset_key:
@@ -130,6 +159,11 @@ def main():
 
     # 2. Initialize Paths & Resolve Input Files
     paths = FilePaths()
+    output_base_dir = (
+        os.path.abspath(args.output_base_dir)
+        if args.output_base_dir
+        else paths.DATA_DIR
+    )
     pion_inputs = resolve_input_files(pion_pattern, paths.RAW_DATA_IN, args.num_files)
     photon_inputs = resolve_input_files(photon_pattern, paths.RAW_DATA_IN, args.num_files)
 
@@ -137,7 +171,7 @@ def main():
 
     # 3. Execute BDT Pipeline
     if args.model in ["bdt", "all"]:
-        bdt_target_dir = os.path.join(paths.BDT_DATA_DIR, f"dataset_{version_tag}")
+        bdt_target_dir = os.path.join(output_base_dir, "BDT", f"dataset_{version_tag}")
         os.makedirs(bdt_target_dir, exist_ok=True)
 
         print("\n" + "=" * 60)
@@ -151,11 +185,13 @@ def main():
             output_dir=bdt_target_dir,
             seed=args.seed,
             chunk_size=args.chunk_size,
+            merge_back_layers=args.merge_back_layers,
+            merge_all_layers=args.merge_all_layers,
         )
 
     # 4. Execute GATr Pipeline
     if args.model in ["gatr", "all"]:
-        gatr_target_dir = os.path.join(paths.GATR_DATA_DIR, f"dataset_{version_tag}")
+        gatr_target_dir = os.path.join(output_base_dir, "GATr", f"dataset_{version_tag}")
         os.makedirs(gatr_target_dir, exist_ok=True)
 
         print("\n" + "=" * 60)
@@ -171,6 +207,7 @@ def main():
             chunk_size=args.chunk_size,
             files_per_chunk=args.files_per_chunk,
             version_tag=version_tag,
+            merge_back_layers=args.merge_back_layers,
         )
 
     print("\n[SUCCESS] Pipeline processing completed successfully!")

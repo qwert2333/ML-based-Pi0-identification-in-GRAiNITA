@@ -101,6 +101,7 @@ def run_bdt_training(
     early_stopping_rounds: int = 50,
     verbose: int = 50,
     logger: logging.Logger = None,
+    feature_cols: list = None,
 ) -> dict:
     """Executes BDT dataset loading, training, checkpointing, and evaluation."""
     def log(msg: str):
@@ -129,7 +130,13 @@ def run_bdt_training(
     config = config_dict if config_dict is not None else DEFAULT_BDT_CONFIG
 
     log(f"--> Initializing BDT Classifier with early stopping rounds = {early_stopping_rounds}")
-    bdt = BDTClassifier(config_dict=config, early_stopping_rounds=early_stopping_rounds)
+    bdt = BDTClassifier(
+        config_dict=config,
+        early_stopping_rounds=early_stopping_rounds,
+        feature_cols=feature_cols,
+    )
+    if feature_cols is not None:
+        log(f"--> Restricting BDT inputs to {len(feature_cols)} features: {list(feature_cols)}")
 
     log(f"--> Starting BDT training using:\n  * Train Dir: {train_dir}\n  * Val Dir:   {val_dir}")
     bdt.train(train_dir=train_dir, val_dir=val_dir, verbose=verbose)

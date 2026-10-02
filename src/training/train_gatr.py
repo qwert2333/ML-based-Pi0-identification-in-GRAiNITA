@@ -177,7 +177,7 @@ def run_gatr_training(
     criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
-    scaler = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
+    scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
 
     best_checkpoint_path = os.path.join(run_dir, "gatr_best_model.pt")
 

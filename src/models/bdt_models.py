@@ -9,7 +9,7 @@ import xgboost as xgb
 class BDTClassifier:
     """Wrapper class for training and evaluating XGBoost BDT on CLUE shower data."""
 
-    def __init__(self, config_dict=None, early_stopping_rounds=30):
+    def __init__(self, config_dict=None, early_stopping_rounds=30, feature_cols=None):
         if config_dict is None:
             config_dict = {
                 "n_estimators": 1000,
@@ -23,6 +23,8 @@ class BDTClassifier:
 
         self.early_stopping_rounds = early_stopping_rounds
         self.feature_names_ = None
+        # Optional explicit feature list; None keeps every non-target column.
+        self.feature_cols = list(feature_cols) if feature_cols is not None else None
 
         self.model = xgb.XGBClassifier(
             n_estimators=config_dict.get("n_estimators", 1000),
@@ -118,6 +120,11 @@ class BDTClassifier:
 
             # Align features in case corrupted branches were dropped
             common_cols = [c for c in X_train.columns if c in X_val.columns]
+            if self.feature_cols is not None:
+                missing = [c for c in self.feature_cols if c not in common_cols]
+                if missing:
+                    raise ValueError(f"Requested BDT features missing from data: {missing}")
+                common_cols = list(self.feature_cols)
             X_train = X_train[common_cols]
             X_val = X_val[common_cols]
             self.feature_names_ = list(common_cols)

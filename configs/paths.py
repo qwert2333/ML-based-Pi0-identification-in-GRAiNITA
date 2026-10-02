@@ -2,6 +2,7 @@
 
 import glob
 import os
+from pathlib import Path
 
 
 class FilePaths:
@@ -11,19 +12,31 @@ class FilePaths:
     """
 
     def __init__(self, base_dir=None, project_dir=None):
-        # 1. Base & Project Root
-        self.BASE_DIR = base_dir or "/eos/user/m/mgroning/"
-        self.PROJECT_DIR = project_dir or os.path.join(
-            self.BASE_DIR, "ML_summer_project/CERN_summer_project"
+        # 1. Base & Project Root. Environment overrides make batch workers use
+        # this checkout rather than the original author's EOS directory.
+        local_project_dir = str(Path(__file__).resolve().parents[1])
+        self.PROJECT_DIR = os.path.abspath(
+            project_dir
+            or os.environ.get("PI0ID_PROJECT_DIR", local_project_dir)
+        )
+        self.BASE_DIR = os.path.abspath(
+            base_dir
+            or os.environ.get("PI0ID_BASE_DIR", os.path.dirname(self.PROJECT_DIR))
         )
 
         # 2. Raw Input Directory
-        self.RAW_DATA_IN = os.path.join(self.BASE_DIR, "DD4hep_Grainita/output")
+        self.RAW_DATA_IN = os.environ.get(
+            "PI0ID_RAW_DATA_DIR", os.path.join(self.PROJECT_DIR, "data", "RawData")
+        )
 
         # 3. Model-Specific Preprocessed Data Directories
         self.DATA_DIR = os.path.join(self.PROJECT_DIR, "data")
-        self.BDT_DATA_DIR = os.path.join(self.DATA_DIR, "BDT")
-        self.GATR_DATA_DIR = os.path.join(self.DATA_DIR, "GATr")
+        self.BDT_DATA_DIR = os.environ.get(
+            "PI0ID_BDT_DATA_DIR", os.path.join(self.DATA_DIR, "BDT")
+        )
+        self.GATR_DATA_DIR = os.environ.get(
+            "PI0ID_GATR_DATA_DIR", os.path.join(self.DATA_DIR, "GATr")
+        )
 
         # 4. Model Checkpoint Output Directories
         self.MODELS_DIR = os.path.join(self.PROJECT_DIR, "trained_models")
